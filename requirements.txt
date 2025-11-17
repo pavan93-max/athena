@@ -1,0 +1,17 @@
+streamlit
+pymupdf         
+python-dotenv
+openai             
+faiss-cpu
+chromadb
+sentence-transformers
+wikipedia
+biopython
+rich
+requests
+langchain
+langchain-community
+langchain-openai
+pypdf
+nltk
+arxiv
