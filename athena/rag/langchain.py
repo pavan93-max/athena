@@ -3,13 +3,25 @@ from typing import Dict, List, Optional
 
 # LangChain imports (best-effort; guard missing libs by raising clear errors)
 try:
-    from langchain.text_splitter import RecursiveCharacterTextSplitter
-    from langchain.document_loaders import PyPDFLoader
+    from langchain.text_splitter import RecursiveCharacterTextSplitter  # type: ignore[import-not-found]
+except Exception:
+    try:
+        from langchain_text_splitters import RecursiveCharacterTextSplitter  # type: ignore[import-not-found]
+    except Exception as e:  # noqa: BLE001
+        raise ImportError("Install langchain-text-splitters to enable document chunking.") from e
+
+try:
+    from langchain.document_loaders import PyPDFLoader  # type: ignore[import-not-found]
+except Exception:
+    try:
+        from langchain_community.document_loaders import PyPDFLoader  # type: ignore[import-not-found]
+    except Exception as e:  # noqa: BLE001
+        raise ImportError("Install langchain-community to enable PDF loading.") from e
+
+try:
     from langchain_core.prompts import ChatPromptTemplate
-    from langchain.chains.combine_documents import create_stuff_documents_chain
-    from langchain.chains import create_retrieval_chain
-except Exception as e:
-    raise ImportError(f"Install required langchain packages: {e}")
+except Exception as e:  # noqa: BLE001
+    raise ImportError("Install langchain-core to enable prompt templates.") from e
 
 def _get_llm():
     """
@@ -20,24 +32,79 @@ def _get_llm():
     if not openai_key:
         raise RuntimeError("OPENAI_API_KEY not set. Export it (or set it in the environment) to use OpenAI.")
 
-    # Try common LangChain OpenAI Chat client import locations
     last_err = None
+
+    # Preferred: langchain_openai package (actively maintained)
     try:
-        # Newer langchain versions:
-        from langchain.chat_models import ChatOpenAI
+        from langchain_openai import ChatOpenAI  # type: ignore[import-not-found]
+
+        return ChatOpenAI(
+            temperature=0.1,
+            model_name="gpt-4o-mini",
+            openai_api_key=openai_key,
+            max_tokens=1000,
+        )
+    except Exception as e:  # noqa: BLE001
+        last_err = e
+
+    # Legacy import paths kept for backwards compatibility
+    try:
+        from langchain.chat_models import ChatOpenAI  # type: ignore[import-not-found]
         return ChatOpenAI(temperature=0.1, model_name="gpt-4o-mini", openai_api_key=openai_key, max_tokens=1000)
     except Exception as e:
         last_err = e
 
     try:
         # Alternate import path
-        from langchain.chat_models.openai import ChatOpenAI
+        from langchain.chat_models.openai import ChatOpenAI  # type: ignore[import-not-found]
         return ChatOpenAI(temperature=0.1, model_name="gpt-4o-mini", openai_api_key=openai_key, max_tokens=1000)
     except Exception as e:
         last_err = e
 
+    # Absolute fallback: call OpenAI directly without LangChain wrappers
+    try:
+        from openai import OpenAI
+
+        client = OpenAI(api_key=openai_key)
+
+        class _DirectChat:
+            def __init__(self, client):
+                self._client = client
+
+            def invoke(self, params: Dict[str, str]):
+                messages = [
+                    {"role": "system", "content": "You are a helpful research assistant."},
+                    {"role": "user", "content": params["input"]},
+                ]
+                resp = self._client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=messages,
+                    temperature=0.1,
+                    max_tokens=1000,
+                )
+                return resp.choices[0].message
+
+            def __ror__(self, other):
+                # Allow prompt_template | llm usage
+                prompt = other
+
+                class _Chained:
+                    def __init__(self, prompt, llm):
+                        self.prompt = prompt
+                        self.llm = llm
+
+                    def invoke(self, inputs):
+                        rendered = self.prompt.format(**inputs)
+                        return self.llm.invoke({"input": rendered})
+
+                return _Chained(prompt, self)
+
+        return _DirectChat(client)
+    except Exception as e:  # noqa: BLE001
+        last_err = e
+
     raise RuntimeError(
-        "OpenAI Chat model client not available. Install a compatible LangChain OpenAI client. "
+        "OpenAI Chat model client not available. Install langchain-openai or ensure the OpenAI SDK is installed. "
         f"Underlying error: {last_err}"
     )
 
@@ -95,52 +162,98 @@ def retrieve_from_document(pdf_path: str, question: str, chunk_size: int = 1000,
 
     # 4) Build vectorstore (FAISS preferred to avoid persistent Chroma issues)
     try:
-        from langchain_community.vectorstores import FAISS as CommunityFAISS
+        from langchain_community.vectorstores import FAISS as CommunityFAISS  # type: ignore[import-not-found]
         vect = CommunityFAISS.from_documents(chunks, embeddings)
     except Exception:
         try:
-            from langchain.vectorstores import FAISS
+            from langchain.vectorstores import FAISS  # type: ignore[import-not-found]
             vect = FAISS.from_documents(chunks, embeddings)
         except Exception as e:
             raise RuntimeError(f"Failed to build vectorstore: {e}")
 
     retriever = vect.as_retriever(search_kwargs={"k": max_docs})
 
-    # 5) Build LLM + prompt chain
+    # 5) Retrieve supporting documents
+    retrieval_error = None
+    ctx_docs: List = []
+
+    def _normalize_docs(result):
+        if result is None:
+            return []
+        if isinstance(result, list):
+            return result
+        if isinstance(result, dict):
+            if "documents" in result:
+                return result["documents"]
+            if "context" in result:
+                return result["context"]
+        return []
+
+    try:
+        if hasattr(retriever, "get_relevant_documents"):
+            ctx_docs = retriever.get_relevant_documents(question)
+        elif hasattr(retriever, "invoke"):
+            ctx_docs = _normalize_docs(retriever.invoke(question))
+        elif callable(getattr(retriever, "__call__", None)):
+            ctx_docs = _normalize_docs(retriever(question))
+        else:
+            retrieval_error = "Retriever does not expose a compatible interface."
+    except Exception as exc:
+        retrieval_error = str(exc)
+        ctx_docs = []
+
+    if not ctx_docs:
+        # Fall back to a lightweight keyword heuristic before giving up entirely.
+        lowered_terms = [t for t in question.lower().split() if len(t) > 2]
+        scored_chunks = []
+        for doc in chunks:
+            text = getattr(doc, "page_content", "").lower()
+            score = sum(text.count(term) for term in lowered_terms)
+            scored_chunks.append((score, doc))
+
+        scored_chunks.sort(key=lambda item: item[0], reverse=True)
+        ctx_docs = [doc for score, doc in scored_chunks if score > 0][:max_docs]
+
+        # If keyword matching still yields nothing, return the first few chunks
+        if not ctx_docs:
+            ctx_docs = chunks[:max_docs]
+
+    context_text = "\n\n".join(
+        f"[Page {doc.metadata.get('page', '?')}] {doc.page_content}"
+        for doc in ctx_docs
+    )
+    if not context_text:
+        context_text = "No additional context was retrieved."
+
+    # 6) Build LLM prompt and generate answer
     llm = _get_llm()
     prompt_template = ChatPromptTemplate.from_template(
-        """
-        Answer the question based on the context below. If you don't know the answer, say you don't know.
-        <context>
-        {context}
-        </context>
-        Question: {input}
-        """
+        (
+            "You are a helpful research assistant. Answer the question strictly "
+            "using the provided context. If the context is insufficient, say so.\n"
+            "<context>\n{context}\n</context>\nQuestion: {input}"
+        )
     )
-    doc_chain = create_stuff_documents_chain(llm, prompt_template)
-    retrieval_chain = create_retrieval_chain(retriever, doc_chain)
+    chain = prompt_template | llm
 
-    # 6) Run retrieval chain
-    result = retrieval_chain.invoke({"input": question})
-
-    # Normalize result
-    answer = ""
-    if isinstance(result, dict):
-        answer = result.get("answer") or result.get("output") or result.get("text") or str(result)
+    result = chain.invoke({"context": context_text, "input": question})
+    if hasattr(result, "content"):
+        answer = result.content.strip()
+    elif isinstance(result, dict) and "content" in result:
+        answer = result["content"].strip()
     else:
-        answer = str(result)
+        answer = str(result).strip()
 
-    # Gather context: try to pull context from the result, otherwise fetch relevant docs from retriever
-    context = result.get("context") if isinstance(result, dict) and "context" in result else None
-    try:
-        if context:
-            ctx_docs = context
-        else:
-            # many retrievers expose get_relevant_documents; fall back gracefully
-            ctx_docs = retriever.get_relevant_documents(question) if hasattr(retriever, "get_relevant_documents") else []
-        ctx_items = [{"page_content": d.page_content, "metadata": getattr(d, "metadata", {})} for d in ctx_docs]
-    except Exception:
-        # Last-resort: empty context
-        ctx_items = []
+    ctx_items = []
+    for doc in ctx_docs:
+        meta = dict(getattr(doc, "metadata", {}) or {})
+        if retrieval_error and "retrieval_warning" not in meta:
+            meta["retrieval_warning"] = retrieval_error
+        ctx_items.append(
+            {
+                "page_content": getattr(doc, "page_content", ""),
+                "metadata": meta,
+            }
+        )
 
     return {"answer": answer, "context": ctx_items, "source_docs": len(ctx_items)}
