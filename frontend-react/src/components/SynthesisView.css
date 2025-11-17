@@ -1,0 +1,314 @@
+.synthesis-view {
+  max-width: 1000px;
+}
+
+.requirements-note {
+  margin-top: 1.5rem;
+  padding: 1.5rem;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(147, 51, 234, 0.1) 100%);
+  border-left: 4px solid;
+  border-image: var(--accent-gradient) 1;
+  border-radius: 12px;
+  backdrop-filter: blur(10px);
+  box-shadow: var(--shadow-sm);
+}
+
+.requirements-note strong {
+  color: #1e40af;
+  display: block;
+  margin-bottom: 1rem;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.requirements-note ul {
+  margin: 1rem 0;
+  padding-left: 1.5rem;
+  list-style: none;
+}
+
+.requirements-note li {
+  margin-bottom: 0.75rem;
+  color: #1e3a8a;
+  line-height: 1.7;
+  font-size: 0.95rem;
+  position: relative;
+  padding-left: 1.5rem;
+}
+
+.requirements-note li::before {
+  content: '→';
+  position: absolute;
+  left: 0;
+  color: #667eea;
+  font-weight: bold;
+}
+
+.requirements-note code {
+  background: rgba(59, 130, 246, 0.15);
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.85em;
+  color: #1e40af;
+  font-weight: 600;
+}
+
+.requirements-note .info-text {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(59, 130, 246, 0.2);
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  line-height: 1.7;
+}
+
+.sample-queries {
+  margin-top: 1.5rem;
+  padding: 1.5rem;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(251, 191, 36, 0.1) 100%);
+  border-left: 4px solid #f59e0b;
+  border-radius: 12px;
+  backdrop-filter: blur(10px);
+  box-shadow: var(--shadow-sm);
+}
+
+.sample-queries strong {
+  color: #92400e;
+  display: block;
+  margin-bottom: 1rem;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.query-examples {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.sample-query-btn {
+  padding: 0.75rem 1.25rem;
+  background: var(--card-solid);
+  border: 2px solid #fbbf24;
+  border-radius: 10px;
+  color: #92400e;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  font-weight: 600;
+  box-shadow: var(--shadow-sm);
+}
+
+.sample-query-btn:hover {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border-color: #f59e0b;
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.synthesis-form {
+  margin-bottom: 2rem;
+}
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.input-group textarea {
+  width: 100%;
+  padding: 1.25rem;
+  border: 2px solid rgba(229, 231, 235, 0.8);
+  border-radius: 12px;
+  font-size: 1rem;
+  font-family: inherit;
+  resize: vertical;
+  transition: all 0.3s;
+  background: var(--card-solid);
+  box-shadow: var(--shadow-sm);
+}
+
+.input-group textarea:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1), var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.input-group button {
+  align-self: flex-end;
+  padding: 1rem 2.5rem;
+  background: var(--primary-gradient);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  font-size: 1rem;
+  box-shadow: var(--shadow-md);
+  position: relative;
+  overflow: hidden;
+}
+
+.input-group button::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  transform: translate(-50%, -50%);
+  transition: width 0.6s, height 0.6s;
+}
+
+.input-group button:hover:not(:disabled)::before {
+  width: 300px;
+  height: 300px;
+}
+
+.input-group button:hover:not(:disabled) {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-lg);
+  background: var(--primary-gradient-hover);
+}
+
+.input-group button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.error-message {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1.25rem;
+  background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+  color: #991b1b;
+  border-radius: 12px;
+  margin-bottom: 1.5rem;
+  border-left: 4px solid #dc2626;
+  box-shadow: var(--shadow-sm);
+  animation: shake 0.5s;
+}
+
+.error-message .icon {
+  width: 22px;
+  height: 22px;
+}
+
+.result-section {
+  margin-top: 2.5rem;
+  animation: fadeInUp 0.6s ease-out;
+}
+
+.claims-section {
+  background: linear-gradient(135deg, #f9fafb 0%, #ffffff 100%);
+  padding: 2rem;
+  border-radius: 16px;
+  margin-bottom: 1.5rem;
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--border-color);
+}
+
+.claims-section h3 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  background: var(--primary-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 1.25rem;
+}
+
+.claims-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.claims-list li {
+  padding: 1rem 1.25rem;
+  margin-bottom: 0.75rem;
+  background: var(--card-solid);
+  border-left: 4px solid;
+  border-image: var(--primary-gradient) 1;
+  border-radius: 8px;
+  color: var(--text-secondary);
+  box-shadow: var(--shadow-sm);
+  transition: all 0.3s;
+}
+
+.claims-list li:hover {
+  transform: translateX(4px);
+  box-shadow: var(--shadow-md);
+}
+
+.report-section {
+  background: var(--card-solid);
+  border: 2px solid rgba(229, 231, 235, 0.8);
+  border-radius: 16px;
+  padding: 2rem;
+  box-shadow: var(--shadow-md);
+  transition: all 0.3s;
+}
+
+.report-section:hover {
+  box-shadow: var(--shadow-lg);
+  border-color: rgba(102, 126, 234, 0.3);
+}
+
+.report-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.25rem;
+}
+
+.report-header h3 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  background: var(--primary-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin: 0;
+}
+
+.download-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background: var(--primary-gradient);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: var(--shadow-sm);
+}
+
+.download-btn:hover {
+  background: var(--primary-gradient-hover);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.download-btn .icon {
+  width: 18px;
+  height: 18px;
+}
+
+.report-info {
+  color: var(--text-muted);
+  line-height: 1.7;
+  font-size: 1rem;
+}

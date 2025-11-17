@@ -16,3 +16,6 @@ langchain-text-splitters
 pypdf
 nltk
 arxiv
+fastapi
+uvicorn
+python-multipart
